@@ -37,7 +37,7 @@ fn rgb888_to_565(buf: &[u8]) -> [u8; 2] {
     output |= (buf[2] as u16 & 0xF8) >> 3;
     output |= (buf[1] as u16 & 0xFC) << 3;
     output |= (buf[0] as u16 & 0xF8) << 8;
-    [ (output & 0xFF) as u8, ((output & 0xFF00) >> 8) as u8 ]
+    [ ((output & 0xFF00) >> 8) as u8, (output & 0xFF) as u8 ]   // byte flip!?
 }
 
 //----------------------------------------------------------------------------
@@ -161,14 +161,24 @@ impl Img {
             let h4 = unsafe { &*(bytes.as_ptr() as *const BMPHeaderV4) };
             if h.compression_type == 3 {
                 if h4.rgba_masks[0] != 0x00FF0000 || h4.rgba_masks[1] != 0x0000FF00 || h4.rgba_masks[2] != 0x000000FF || h4.rgba_masks[3] != 0xFF000000 {
-                    return Err("32bpp BMP bitfields not ARGB8888.".to_string());
+                    return Err("32bpp BMP bitfields not BGRA8888.".to_string());
                 }
             }
             for y in 0..img.h as usize {
                 let row = if top_down { y } else { img.h as usize - y - 1 };
                 let bmp_offset = h.offset as usize + row * row_size;
                 let dest_offset = y * img.w as usize * 4;
-                img.data[dest_offset as usize..dest_offset as usize + img.w as usize * 4].copy_from_slice(&bytes[bmp_offset as usize..bmp_offset as usize + img.w as usize * 4]);
+                // img.data[dest_offset as usize..dest_offset as usize + img.w as usize * 4].copy_from_slice(&bytes[bmp_offset as usize..bmp_offset as usize + img.w as usize * 4]);
+                // we can't just copy the data across, it ends up in the wrong format! we put alpha first (ARGB), the BMP file puts alpha last (BGRA).
+                for x in 0..img.w as usize {
+                    let pixel = &bytes[bmp_offset + x * 4..bmp_offset + (x + 1) * 4];
+                    let p_offset = dest_offset + x * 4;
+                    img.data[p_offset]   = pixel[3];
+                    img.data[p_offset+1] = pixel[2];
+                    img.data[p_offset+2] = pixel[1];
+                    img.data[p_offset+3] = pixel[0];
+                }
+
             }
         } else if h.bpp == 24 {
             // This pathway is untested... 
@@ -259,7 +269,7 @@ impl Img {
         *self = new_img;
     }    
 
-    fn argb8565_to_rle_new(&mut self) {         // designed to match the competitor's (inferior?) algorithm
+    fn _argb8565_to_rle_new_alt(&mut self) {    // slightly more efficient algorithm?
         if self.format != ImgFormat::Argb8565 {
             panic!("Expect Argb8565.");
         }        
@@ -269,7 +279,6 @@ impl Img {
 
         let mut dest_offset = self.h as usize * 4;  // dest pixels start after header
 
-        println!("calculated rle header size {}", dest_offset);
         // compress the data
         // for each row
         let row_width = self.w as usize * 3;
@@ -348,6 +357,125 @@ impl Img {
             
             dest_offset += row_dest_data.len();
             dest_data.extend(&row_dest_data);
+        }
+                    
+        *self = Img {
+            w: self.w,
+            h: self.h,
+            format: ImgFormat::RleNew,
+            data: dest_data,
+            rle_header: Some(dest_header),
+        };
+    }
+
+    // Compress the data using the OEM rle algorithm. It is not the most efficient algorithm!
+    fn argb8565_to_rle_new(&mut self) {         
+        if self.format != ImgFormat::Argb8565 {
+            panic!("Expect Argb8565.");
+        }        
+
+        let mut dest_header = Vec::<u8>::with_capacity(self.h as usize * 4);
+        let mut dest_data = Vec::<u8>::with_capacity(self.data.len());  // allocate plenty of bytes
+
+        let mut dest_offset = self.h as usize * 4;  // dest pixels start after header
+
+        // compress the data
+        // for each row
+        let row_width = self.w as usize * 3;
+        for y in 0..self.h as usize {
+            // get the pixels for this row
+            let row_src_data = &self.data[(y * row_width)..((y + 1) * row_width)];
+            let mut row_dest_data = Vec::<u8>::new();
+            let mut offset = 0;
+
+            while offset <= (row_width - 9) {
+                let mut pixel_a: Vec<u8> = row_src_data[offset..offset+3].to_vec();
+                let mut pixel_b: Vec<u8> = row_src_data[offset+3..offset+6].to_vec();
+                let mut pixel_c: Vec<u8> = row_src_data[offset+6..offset+9].to_vec();
+
+                if (pixel_a == pixel_b) && (pixel_b == pixel_c) {
+                    // start a REPEATING block
+                    let repeating_pixel = pixel_a.clone();
+                    let mut repeating_count = 2;        // at least the first two are repeating
+                    offset += 6;
+                    let mut pixel = row_src_data[offset..offset+3].to_vec();
+                    // count how many pixels are in the REPEATING block
+                    while (repeating_count < 127) && (repeating_pixel == pixel) {
+                        repeating_count += 1;
+                        offset += 3;
+                        if offset > (row_width - 3) {
+                            break;
+                        }
+                        pixel = row_src_data[offset..offset+3].to_vec();
+                    }
+                    // we have repeating_count pixels
+                    // save the repeating pixels
+                    row_dest_data.push(0x80 | repeating_count);
+                    row_dest_data.extend(&repeating_pixel);
+                } else {
+                    // start a NON-REPEATING block
+                    let mut nr_start = offset;
+                    let mut nr_count = 0;
+
+                    // count how many pixels are in the NON-REPEATING block... 
+                    while (nr_count < 127) && !((pixel_a == pixel_b) && (pixel_b == pixel_c)) {
+                        nr_count += 1;                        
+                        offset += 3;
+                        if offset > (row_width - 9) {
+                            // so long as we have enough room in the counter, just store the remaining pixels
+                            while offset < row_width {
+                                if nr_count == 127 {
+                                    // just gotta save the last couple of pixels as a new item, after storing this lot
+                                    // store this lot
+                                    row_dest_data.push(nr_count);
+                                    row_dest_data.extend(row_src_data[nr_start..offset].iter());
+                                    // start a new lot
+                                    nr_count = 0;
+                                    nr_start = offset;
+                                }
+                                nr_count += 1;
+                                offset += 3;
+                            }
+                            break;
+                        }   
+                        pixel_a = row_src_data[offset..offset+3].to_vec();
+                        pixel_b = row_src_data[offset+3..offset+6].to_vec();
+                        pixel_c = row_src_data[offset+6..offset+9].to_vec();
+                    }
+                    // we have nr_count pixels, starting from nr_start
+                    row_dest_data.push(nr_count);
+                    row_dest_data.extend(row_src_data[nr_start..offset].iter());
+                }
+            }
+            // finish off the row
+            // just store whatever pixels are left as non-repeating ?!
+            let count = (row_width - offset) / 3;
+            if count > 0 {
+                row_dest_data.push(count as u8); // non-repeating
+                row_dest_data.extend(&row_src_data[offset..row_width]);
+            }
+            // Save row offset, size to dest_header
+            // row_size is 11 bits of a u16, the hi bits of the offset go into the other
+            // so the offset is 16+5 = 21 bits
+            if row_dest_data.len() > 0x7FF {
+                panic!("rle compressed row is too long to be stored!");
+            }
+            if dest_offset > 0x1FFFFF {
+                panic!("rle compressed data is too big to be stored!");
+            }
+            let row_dest_size = row_dest_data.len() * 32; // preshifted
+            let row_dest_size_bits0: u8 = (row_dest_size & 0xFF) as u8;
+            let row_dest_size_bits1: u8 = ((row_dest_size & 0xFF00) >> 8) as u8;
+            let row_dest_offset_bits0: u8 = (dest_offset & 0xFF) as u8;
+            let row_dest_offset_bits1: u8 = ((dest_offset & 0xFF00) >> 8) as u8;
+            let row_dest_offset_bits2: u8 = ((dest_offset & 0x1F0000) >> 16) as u8;
+            dest_header.push(row_dest_offset_bits0);
+            dest_header.push(row_dest_offset_bits1);
+            dest_header.push(row_dest_offset_bits2 | row_dest_size_bits0);
+            dest_header.push(row_dest_size_bits1);
+            
+            dest_offset += row_dest_data.len();
+            dest_data.extend(row_dest_data.iter());
         }
                     
         *self = Img {

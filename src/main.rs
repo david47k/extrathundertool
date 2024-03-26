@@ -44,6 +44,8 @@ fn main() {
             format = DumpFormat::RAW;
         } else if argv[i] == "--bin" {
             format = DumpFormat::BIN;
+        } else if argv[i] == "--bmp" {
+            format = DumpFormat::BMP;
         } else if argv[i].starts_with("--dump") {
             dump = true;
             if argv[i].len() >= 8 && argv[i].as_bytes()[6] == b'=' {
@@ -85,10 +87,12 @@ fn main() {
         eprintln!("Usage:   {} [OPTIONS] FILENAME\n", basename);
         eprintln!("  OPTIONS");
         eprintln!("    --dump=FOLDERNAME    Dump data to folder. Folder name defaults to 'dump'.");
-        eprintln!("    --bin                When dumping, dump binary (compressed) files.");
+        eprintln!("    --pack=FOLDERNAME    Pack data from folder. Folder name defaults to 'dump'.");
+        eprintln!("    --bmp                When dumping, dump BMP (windows bitmap) files. Default.");
         eprintln!("    --raw                When dumping, dump raw (decompressed raw bitmap) files.");
+        eprintln!("    --bin                When dumping, dump binary (RLE compressed) files.");
         eprintln!("    --debug=LEVEL        Print more debug info. Range 0 to 3.");
-        eprintln!("  FILENAME               Binary watch face file for input.");
+        eprintln!("  FILENAME               Binary watch face file for input/output.");
         eprintln!("\n");
         std::process::exit(0);
     }
