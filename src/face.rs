@@ -116,9 +116,7 @@ impl FaceN
         total_header_size += digits_header_size;            // size of the digits section
         total_header_size += self.elements.iter().map(|el| el.bin_size()).sum::<usize>();   // size of all the elements
         total_header_size += 2;                             // there are two zero bytes that mark the end of the elements section
-        
-        println!("Total header size: {}", total_header_size);   // original started at 300d for background, with digits a bit after... I had 297 calculated...
-        
+                
         let mut blob_data: Vec<u8> = Vec::new();
         let header_align = get_align_diff(total_header_size as u32);
         let mut blob_offset: u32 = total_header_size as u32 + header_align as u32;        // align it to 32-bit

@@ -32,7 +32,7 @@ fn main() {
     let mut dump = false;
     let mut pack = false;
     let mut show_help = false;
-    let mut debug_level: u8 = 1;
+    let mut debug: u8 = 1;
 
     // find executable name
     let basename = "extrathundertool";
@@ -60,9 +60,9 @@ fn main() {
                 folder_name = &argv[i][7..];
             }
         } else if argv[i].starts_with("--debug") {
-            debug_level = 3;
+            debug = 3;
             if argv[i].len() >= 9 && argv[i].as_bytes()[7] == b'=' {
-                debug_level = argv[i][8..].parse().unwrap();
+                debug = argv[i][8..].parse().unwrap();
             }
         } else if argv[i].starts_with("--help") {
             show_help = true;
@@ -80,7 +80,7 @@ fn main() {
     }
 
     // display basic program header
-    eprintln!("\nextrathunder watchface tool: For 'new' Mo Young / Da Fit binary watch face files.\n");
+    if debug >= 1 { eprintln!("\nextrathunder watchface tool: For 'new' Mo Young / Da Fit binary watch face files.\n"); }
 
     // display help
     if argv.len() < 2 || show_help {
@@ -98,7 +98,7 @@ fn main() {
     }
 
     if !pack {
-        print!("Reading '{}' ... ", file_name);
+        if debug >= 1 { print!("Reading '{}' ... ", file_name); }
 
         // Open the binary input file
         let fdata: Vec<u8> = fs::read(file_name).expect("ERROR: Failed to read file into memory.");
@@ -106,9 +106,9 @@ fn main() {
         // Load the binary watch face file
         let mut f = face::FaceN::from_bin(&fdata);
 
-        println!("done.");
+        if debug >= 1 { println!("done."); }
 
-        if debug_level >= 3 {
+        if debug >= 3 {
             // Print debug info
             eprintln!("api_ver          {}", f.api_ver);
             eprintln!("unknown          0x{:04X}", f.unknown);
@@ -139,9 +139,9 @@ fn main() {
             f.generate_file_names(&format);
             
             // save the images
-            print!("Saving images ... ");
+            if debug >= 1 { print!("Saving images ... "); }
             f.write_imgs(&folder_name, &format);
-            println!("done.");
+            if debug >= 1 { println!("done."); }
 
             // file to save json data to        
             let output_file_name = "watchface.json";
@@ -153,12 +153,12 @@ fn main() {
             };
 
             // save the json data
-            print!("Saving '{}' ... ", output_file_name);
+            if debug >= 1 { print!("Saving '{}' ... ", output_file_name); }
             match fs::write(path, json_data) {
                 Ok(_) => {},
                 Err(e) => { println!("ERROR: Unable to save '{}': {}", output_file_name, e); return; },
             };
-            println!("done.");
+            if debug >= 1 { println!("done."); }
         }
     } else {    // PACK
         // read in the json file
@@ -167,7 +167,7 @@ fn main() {
             panic!("ERROR: path provided for --pack is not a folder")
         }
 
-        print!("Reading 'watchface.json' ... ");
+        if debug >= 1 { print!("Reading 'watchface.json' ... "); }
         let path: PathBuf = [ folder_name, "watchface.json" ].iter().collect();
         let file_data = match std::fs::read(path) {
             Ok(fd) => fd,
@@ -179,12 +179,12 @@ fn main() {
             Err(e) => { println!("ERROR: Unable to understand JSON file: {}", e); return; }
         };
 
-        println!("done.");
+        if debug >= 1 { println!("done."); }
 
         // Read in the images
-        println!("Reading in bitmaps ...");
+        if debug >= 1 { println!("Reading in bitmaps ..."); }
         face.read_imgs(folder_name);
-        println!("... done.");
+        if debug >= 1 { println!("... done."); }
 
         // Print debug info
         // println!("{:#?}", face);
@@ -193,12 +193,12 @@ fn main() {
         let bin_data = face.to_bin();
 
         // Write to output file
-        println!("Saving '{}' ... ", file_name);
+        if debug >= 1 { println!("Saving '{}' ... ", file_name); }
         match fs::write(file_name, bin_data) {
             Ok(_) => {},
             Err(e) => { println!("ERROR: Unable to save '{}': {}", file_name, e); return; },
         };
-        println!("... done.");
+        if debug >= 1 { println!("... done."); }
 
     }
 }
