@@ -13,77 +13,78 @@
 
 #[repr(packed,C)]
 pub struct BMPHeaderClassic {
-    pub sig: u16,               // "BM"                                              BITMAPFILEHEADER starts here
-    pub file_size: u32,          // unreliable - size in bytes of file
+    pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
+    pub file_size: u32,         // unreliable - size in bytes of file
     pub reserved1: u16,         // 0
     pub reserved2: u16,         // 0
-    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER ends here
-    pub dib_header_size: u32,     // 40 = size of BITMAPINFOHEADER                    BITMAPINFOHEADER starts here, BITMAPINFO starts here, BITMAPV4HEADER starts here
+    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER end
+    pub dib_header_size: u32,   // 40 = size of BITMAPINFOHEADER                    BITMAPINFO start, BITMAPINFOHEADER start
     pub width: i32,             // pixels
     pub height: i32,            // pixels
     pub planes: u16,            // 1
     pub bpp: u16,               // 16
-    pub compression_type: u32,   // 0=BI_RGB. 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
-    pub image_data_size: u32,     // including padding - unreliable
+    pub compression_type: u32,  // 0=BI_RGB. 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
+    pub image_data_size: u32,   // including padding - unreliable
     pub hres: u32,              // pixels per metre
     pub vres: u32,              // pixels per meter
-    pub clr_used: u32,           // colors in image, or 0
-    pub clr_important: u32,      // colors in image, or 0                            BITMAPINFOHEADER ends here
-    pub bmi_colors: [u32; 3],    // masks for R, G, B components (for 16bpp)
+    pub clr_used: u32,          // colors in image, or 0
+    pub clr_important: u32,     // colors in image, or 0                            BITMAPINFOHEADER end
+    pub bmi_colors: [u32; 3],   // masks for R, G, B components (for 16bpp)         BITMAPINFO end
 }
 
 pub const BASIC_BMP_HEADER_SIZE: usize = std::mem::size_of::<BMPHeaderClassic>() - 12;
 
 #[repr(packed,C)]
 pub struct BMPHeaderV4 {
-    pub sig: u16,               // "BM"                                              BITMAPFILEHEADER starts here
-    pub file_size: u32,          // unreliable - size in bytes of file
+    pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
+    pub file_size: u32,         // unreliable - size in bytes of file
     pub reserved1: u16,         // 0
     pub reserved2: u16,         // 0
-    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER ends here
-    pub dib_header_size: u32,     // 108 for BITMAPV4HEADER                            BITMAPINFOHEADER starts here, BITMAPINFO starts here, BITMAPV4HEADER starts here
+    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER end
+    pub dib_header_size: u32,   // 108 for BITMAPV4HEADER                           BITMAPV4HEADER start
     pub width: i32,             // pixels
     pub height: i32,            // pixels
     pub planes: u16,            // 1
     pub bpp: u16,               // 16
-    pub compression_type: u32,   // 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
-    pub image_data_size: u32,     // including padding - unreliable
+    pub compression_type: u32,  // 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
+    pub image_data_size: u32,   // including padding - unreliable
     pub hres: u32,              // pixels per metre
     pub vres: u32,              // pixels per meter
-    pub clr_used: u32,           // colors in image, or 0
-    pub clr_important: u32,      // colors in image, or 0                            BITMAPINFOHEADER ends here
-    pub rgba_masks: [u32; 4],    // masks for R,G,B,A components (if BI_BITFIELDS)    BITMAPINFO ends here
+    pub clr_used: u32,          // colors in image, or 0
+    pub clr_important: u32,     // colors in image, or 0                            
+    pub rgba_masks: [u32; 4],   // masks for R,G,B,A components (if BI_BITFIELDS)    
     pub cs_type: u32,
     pub bv4_endpoints: [u32; 9],
-    pub gammas: [u32; 3],
+    pub gammas: [u32; 3],       //                                                  BITMAPV4HEADER end
 }
 
 #[repr(packed,C)]
 pub struct BMPHeaderV5 {
-    pub sig: u16,               // "BM"                                             BITMAPFILEHEADER starts here
-    pub file_size: u32,          // unreliable - size in bytes of file
+    pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
+    pub file_size: u32,         // unreliable - size in bytes of file
     pub reserved1: u16,         // 0
     pub reserved2: u16,         // 0
-    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER ends here
-    pub dib_header_size: u32,     // 124 for BITMAPV5HEADER                            BITMAPINFOHEADER starts here, BITMAPINFO starts here, BITMAPV5HEADER starts here
+    pub offset: u32,            // offset to start of image data                    BITMAPFILEHEADER end
+    pub dib_header_size: u32,   // 124 for BITMAPV5HEADER                           BITMAPV5HEADER start
     pub width: i32,             // pixels
     pub height: i32,            // pixels
     pub planes: u16,            // 1
     pub bpp: u16,               // 16
-    pub compression_type: u32,   // 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
-    pub image_data_size: u32,     // including padding - unreliable
+    pub compression_type: u32,  // 3=BI_BITFIELDS. Must be set to BI_BITFIELDS for RGB565 format.
+    pub image_data_size: u32,   // including padding - unreliable
     pub hres: u32,              // pixels per metre
     pub vres: u32,              // pixels per meter
-    pub clr_used: u32,           // colors in image, or 0
-    pub clr_important: u32,      // colors in image, or 0                              BITMAPINFOHEADER ends here
-    pub rgba_masks: [u32; 4],    // masks for R,G,B,A components (if BI_BITFIELDS)     BITMAPINFO ends here
+    pub clr_used: u32,          // colors in image, or 0
+    pub clr_important: u32,     // colors in image, or 0                            
+    pub rgba_masks: [u32; 4],   // masks for R,G,B,A components (if BI_BITFIELDS)   
+    pub cs_type: u32,
+    pub bv4_endpoints: [u32; 9],
+    pub gammas: [u32; 3],    
     pub intent: u32,
     pub profile_data: u32,
     pub profile_size: u32,
-    pub reserved: u32,          //                                                     BITMAPV5HEADER ends here
-    pub cs_type: u32,
-    pub bv4_endpoints: [u32; 9],
-    pub gammas: [u32; 3],
+    pub reserved: u32,          //                                                  BITMAPV5HEADER ends here
+
 }
 
 impl BMPHeaderV5 {
