@@ -1,0 +1,12 @@
+[package]
+name = "extrathundertool"
+version = "0.1.0"
+edition = "2021"
+# remove first @
+authors = ["David Atkinson <dav@id47k@d47.co>"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0.114"
+serde = { version = "1.0", features = ["derive"] }
