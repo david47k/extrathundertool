@@ -11,6 +11,12 @@
 //  BMP FILE FORMAT HEADERS
 //----------------------------------------------------------------------------
 
+pub fn confirm_le_byte_order() {
+    const TESTDATA: u32 = 0x12345678;
+    assert_eq!(TESTDATA.to_le_bytes(), TESTDATA.to_ne_bytes(), "Sorry, program is designed for little-endian systems only.");
+}
+
+#[derive(Copy,Clone)]
 #[repr(packed,C)]
 pub struct BMPHeaderClassic {
     pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
@@ -32,8 +38,26 @@ pub struct BMPHeaderClassic {
     pub bmi_colors: [u32; 3],   // masks for R, G, B components (for 16bpp)         BITMAPINFO end
 }
 
-pub const BASIC_BMP_HEADER_SIZE: usize = std::mem::size_of::<BMPHeaderClassic>() - 12;
+const CLASSIC_SIZE: usize = 54 + 12;
 
+impl BMPHeaderClassic {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        assert_eq!(CLASSIC_SIZE, std::mem::size_of::<Self>(), "BMPHeaderClassic is of unexpected size!");
+        assert!(bytes.len() < CLASSIC_SIZE, "BMP file is too small.");
+        confirm_le_byte_order();
+        // If:
+        // - Architecture byte order is little-endian
+        // - BMPHeaderClassic is packed
+        // - BMPHeaderClassic contains only basic types
+        // - Compiler can handle unaligned fields                
+        // Then: this should be safe
+        unsafe { *(bytes.as_ptr() as *const BMPHeaderClassic) }
+    }
+}
+
+const V4SIZE: usize = 122;
+
+#[derive(Copy,Clone)]
 #[repr(packed,C)]
 pub struct BMPHeaderV4 {
     pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
@@ -58,6 +82,22 @@ pub struct BMPHeaderV4 {
     pub gammas: [u32; 3],       //                                                  BITMAPV4HEADER end
 }
 
+impl BMPHeaderV4 {
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        assert_eq!(V4SIZE, std::mem::size_of::<Self>(), "BMPHeaderV4 is of unexpected size!");
+        assert!(bytes.len() < V4SIZE, "BMP file is too small.");
+        confirm_le_byte_order();
+        // If:
+        // - Architecture byte order is little-endian
+        // - BMPHeaderV4 is packed
+        // - BMPHeaderV4 contains only basic types
+        // - Compiler can handle unaligned fields                
+        // Then: this should be safe    
+        unsafe { *(bytes.as_ptr() as *const BMPHeaderV4) }
+    }
+}
+
+#[derive(Copy,Clone)]
 #[repr(packed,C)]
 pub struct BMPHeaderV5 {
     pub sig: u16,               // "BM"                                             BITMAPFILEHEADER start
@@ -84,15 +124,14 @@ pub struct BMPHeaderV5 {
     pub profile_data: u32,
     pub profile_size: u32,
     pub reserved: u32,          //                                                  BITMAPV5HEADER ends here
-
 }
+
+const V5SIZE: usize = 138;
 
 impl BMPHeaderV5 {
     pub fn new(width: u32, height: u32, bpp: u8) -> Self {
-        const V5SIZE: usize = 138;
-        if V5SIZE != std::mem::size_of::<BMPHeaderV5>() {
-            panic!("BMPHeaderV5 is not 138 bytes!");
-        }
+        assert_eq!(V5SIZE, std::mem::size_of::<BMPHeaderV5>(), "BMPHeaderV5 is not 138 bytes!");
+        confirm_le_byte_order();
         let row_size = (((bpp as u32 / 8) * width) + 3) & 0xFFFFFFFC;
         let mut dest = BMPHeaderV5 {
             reserved1: 0,
@@ -141,15 +180,16 @@ impl BMPHeaderV5 {
         return dest;
     }
     pub fn to_bytes(&self) -> Vec<u8> {
-        const V5SIZE: usize = 138;
-        if V5SIZE != std::mem::size_of::<BMPHeaderV5>() {
-            panic!("BMPHeaderV5 is not 138 bytes!");
-        }
-        let mut bytes: Vec<u8> = vec![0; V5SIZE];
+        assert_eq!(V5SIZE, std::mem::size_of::<BMPHeaderV5>(), "BMPHeaderV5 is not 138 bytes!");
+        confirm_le_byte_order();
+        // If:
+        // - Architecture byte order is little-endian
+        // - BMPHeaderV5 is packed
+        // - BMPHeaderV5 contains only basic types
+        // - Compiler can handle unaligned fields                
+        // Then: this should be safe      
         unsafe {
-            let header_bytes = std::mem::transmute::<&BMPHeaderV5,&[u8; V5SIZE]>(self);
-            (0..V5SIZE).for_each(|i| bytes[i] = header_bytes[i]);
+            std::mem::transmute::<&BMPHeaderV5,&[u8; V5SIZE]>(self).to_vec()
         }
-        bytes
     }
 }

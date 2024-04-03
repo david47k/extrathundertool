@@ -73,12 +73,8 @@ impl Img {
         }
     }
 
-    pub fn from_bmp(bytes: &Vec<u8>) -> Result<Img, String> {
-        if bytes.len() < BASIC_BMP_HEADER_SIZE {
-            return Err("BMP file is too small.".to_string());
-        }
-        
-        let h = unsafe { &*(bytes.as_ptr() as *const BMPHeaderClassic) };
+    pub fn from_bmp(bytes: &Vec<u8>) -> Result<Img, String> {  
+        let h = BMPHeaderClassic::from_bytes(bytes);
         
         let mut height = h.height;
         let mut top_down = false;
@@ -158,7 +154,7 @@ impl Img {
                 }
             }
         } else if h.bpp == 32 && h.dib_header_size > 40 {
-            let h4 = unsafe { &*(bytes.as_ptr() as *const BMPHeaderV4) };
+            let h4 = BMPHeaderV4::from_bytes(bytes);
             if h.compression_type == 3 {
                 if h4.rgba_masks[0] != 0x00FF0000 || h4.rgba_masks[1] != 0x0000FF00 || h4.rgba_masks[2] != 0x000000FF || h4.rgba_masks[3] != 0xFF000000 {
                     return Err("32bpp BMP bitfields not BGRA8888.".to_string());
